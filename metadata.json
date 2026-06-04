@@ -1,0 +1,6 @@
+{
+  "name": "Exam Study Assistant",
+  "description": "مساعد دراسي تفاعلي للاختبار النهائي يحتوي على الكتاب المدرسي وصور لوح الشرح التفاعلية مع إمكانية التكبير والتنقل.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
