@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ZoomIn, ZoomOut, RotateCw, Maximize2, Move, ArrowRight, ArrowLeft, 
-  Settings, Sliders, Check, Eye, Trash2, Plus, Link as LinkIcon, Image as ImageIcon, Sparkles, RefreshCw
+  Settings, Sliders, Check, Eye, Trash2, Plus, Link as LinkIcon, Image as ImageIcon, Sparkles, RefreshCw,
+  BookOpen, GraduationCap, FileText
 } from 'lucide-react';
 import { BoardImage } from '../types';
 
@@ -11,6 +12,10 @@ interface WhiteboardViewerProps {
   onSelectIndex: (idx: number) => void;
   onAddImage: (newImg: BoardImage) => void;
   onDeleteImage: (id: string) => void;
+  activeSource: 'teacher' | 'notebook';
+  onChangeSource: (source: 'teacher' | 'notebook') => void;
+  teacherCount: number;
+  notebookCount: number;
 }
 
 export function WhiteboardViewer({ 
@@ -18,7 +23,11 @@ export function WhiteboardViewer({
   activeIdx, 
   onSelectIndex, 
   onAddImage, 
-  onDeleteImage 
+  onDeleteImage,
+  activeSource,
+  onChangeSource,
+  teacherCount,
+  notebookCount
 }: WhiteboardViewerProps) {
   
   const activeImage = images[activeIdx] || null;
@@ -205,17 +214,55 @@ export function WhiteboardViewer({
     <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-xs flex flex-col h-full" id="whiteboard-card">
       
       {/* Title block with helper icons */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="flex h-2.5 w-2.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
-            <h2 className="text-lg font-bold text-slate-800">ألوح الشرح والتلخيص للمعلم</h2>
+            <h2 className="text-lg font-bold text-slate-800">
+              {activeSource === 'teacher' ? 'ألوح الشرح والتلخيص للمعلم' : 'دفتر الطالب عدنان مجاهد'}
+            </h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1">تصفح صور اللوح بوضوح واعتمد على فلاتر التقريب وتوضيح الكتابة</p>
+          <p className="text-xs text-slate-400 mt-1">
+            {activeSource === 'teacher' 
+              ? 'تصفح صور اللوح بوضوح واعتمد على فلاتر التقريب وتوضيح الكتابة'
+              : 'استعرض وحمل صفحات تلخيص كيمياء التوجيهي كراسة الطالب عدنان مجاهد'}
+          </p>
         </div>
+      </div>
+
+      {/* Dynamic Tabs: Teacher boards vs Student Notebook */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl mb-4 gap-1" id="whiteboard-tabs-switch">
+        <button
+          onClick={() => onChangeSource('teacher')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-black rounded-xl transition cursor-pointer ${
+            activeSource === 'teacher'
+              ? 'bg-white text-emerald-600 shadow-xs'
+              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+          }`}
+        >
+          <ImageIcon className="w-4 h-4 shrink-0" />
+          <span>👨‍🏫 لوحات الشرح للمعلم</span>
+          <span className="text-[10px] bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded-md font-mono">
+            {teacherCount}
+          </span>
+        </button>
+        <button
+          onClick={() => onChangeSource('notebook')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-xs font-black rounded-xl transition cursor-pointer ${
+            activeSource === 'notebook'
+              ? 'bg-white text-emerald-600 shadow-xs'
+              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+          }`}
+        >
+          <FileText className="w-4 h-4 shrink-0" />
+          <span>📝 دفتر الطالب عدنان مجاهد</span>
+          <span className="text-[10px] bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded-md font-mono">
+            {notebookCount}
+          </span>
+        </button>
       </div>
 
       {/* Main Image Container */}

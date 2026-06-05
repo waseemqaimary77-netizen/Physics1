@@ -15,16 +15,28 @@ const defaultDistinctImages: BoardImage[] = [
   }
 ];
 
+const defaultNotebookImages: BoardImage[] = [
+  {
+    id: 'notebook_cover',
+    url: 'https://i.imgur.com/kqHb7p4.jpg',
+    title: 'كراسة الطالب النموذجي عدنان مجاهد - الغلاف',
+    description: 'ملخص كيمياء التوجيهي الشامل والمنسق بخط اليد للطالب المتفوق عدنان مجاهد الشامل للوحدات والأسئلة.',
+    category: 'دفتر عدنان'
+  }
+];
+
 export default function App() {
   
   const bookPdfUrl = "https://www.wepal.net/upload/legacy/2019/09-2019/content/5d82baf7a4750.pdf";
 
-  // Whiteboard images state
-  const [images, setImages] = useState<BoardImage[]>(() => {
+  // Active view source: teacher whiteboards vs Adnan's student notebook
+  const [activeSource, setActiveSource] = useState<'teacher' | 'notebook'>('teacher');
+
+  // Teacher whiteboard images state
+  const [teacherImages, setTeacherImages] = useState<BoardImage[]>(() => {
     const saved = localStorage.getItem('study_board_images');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Ensure we do not load state containing Unsplash placeholders
       const hasUnsplash = parsed.some((img: any) => img.url && img.url.includes('unsplash.com'));
       if (parsed.length > 0 && !hasUnsplash) {
         return parsed;
@@ -33,53 +45,87 @@ export default function App() {
     return defaultDistinctImages;
   });
 
+  // Student notebook images state
+  const [notebookImages, setNotebookImages] = useState<BoardImage[]>(() => {
+    const saved = localStorage.getItem('study_notebook_images');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.length > 0) {
+        return parsed;
+      }
+    }
+    return defaultNotebookImages;
+  });
+
+  // Active indices for the two sources
+  const [teacherActiveIdx, setTeacherActiveIdx] = useState<number>(0);
+  const [notebookActiveIdx, setNotebookActiveIdx] = useState<number>(0);
+
+  // Computed state references based on activeSource
+  const images = activeSource === 'teacher' ? teacherImages : notebookImages;
+  const activeIdx = activeSource === 'teacher' ? teacherActiveIdx : notebookActiveIdx;
+  
+  const setActiveIdx = (idx: number) => {
+    if (activeSource === 'teacher') {
+      setTeacherActiveIdx(idx);
+    } else {
+      setNotebookActiveIdx(idx);
+    }
+  };
+
   // Client-side dynamic scraper to fetch unblocked boards directly in the user's browser
   useEffect(() => {
-    const fetchImgurAlbum = async () => {
+    const fetchImgurAlbum = async (albumId: string, isTeacher: boolean) => {
       // Direct API endpoints to query in the student's browser (bypasses UK/Google Cloud blocks)
       const endpoints = [
         {
-          url: 'https://api.imgur.com/post/v1/posts/9TP6hPU?client_id=546c25a59c58ad7&include=media',
+          url: `https://api.imgur.com/post/v1/posts/${albumId}?client_id=546c25a59c58ad7&include=media`,
           parser: (json: any) => {
             if (json && json.media && Array.isArray(json.media)) {
               return json.media.map((item: any, idx: number) => ({
-                id: `board_${item.id}`,
+                id: `board_${albumId}_${item.id}`,
                 url: item.url || `https://i.imgur.com/${item.id}.jpg`,
-                title: item.metadata?.title || `لوحة الشرح والتلخيص ${idx + 1}`,
-                description: item.metadata?.description || `اللوح الدراسي رقم ${idx + 1} لمراجعة الكيمياء والتمثيل البياني والاتزان الكيميائي.`,
-                category: 'لوح المعلم'
+                title: isTeacher ? `لوحة الشرح والتلخيص ${idx + 1}` : `دفتر عدنان مجاهد - صفحة ${idx + 1}`,
+                description: isTeacher 
+                  ? `اللوح الدراسي رقم ${idx + 1} لمراجعة الكيمياء والتمثيل البياني والاتزان الكيميائي.`
+                  : `الصفحة الملخصة بخط اليد رقم ${idx + 1} لمراجعة مادة كيمياء التوجيهي، وسرعة التفاعل من دفتر عدنان مجاهد.`,
+                category: isTeacher ? 'لوح المعلم' : 'دفتر عدنان'
               }));
             }
             return null;
           }
         },
         {
-          url: 'https://api.imgur.com/3/album/9TP6hPU/images',
+          url: `https://api.imgur.com/3/album/${albumId}/images`,
           headers: { 'Authorization': 'Client-ID 546c25a59c58ad7' },
           parser: (json: any) => {
             if (json && json.data && Array.isArray(json.data)) {
               return json.data.map((item: any, idx: number) => ({
-                id: `board_${item.id}`,
+                id: `board_${albumId}_${item.id}`,
                 url: item.link || `https://i.imgur.com/${item.id}.jpg`,
-                title: item.title || `لوحة الشرح والتلخيص ${idx + 1}`,
-                description: item.description || `اللوح الدراسي رقم ${idx + 1} لمراجعة الكيمياء والتمثيل البياني والاتزان الكيميائي.`,
-                category: 'لوح المعلم'
+                title: isTeacher ? `لوحة الشرح والتلخيص ${idx + 1}` : `دفتر عدنان مجاهد - صفحة ${idx + 1}`,
+                description: isTeacher 
+                  ? `اللوح الدراسي رقم ${idx + 1} لمراجعة الكيمياء والتمثيل البياني والاتزان الكيميائي.`
+                  : `الصفحة الملخصة بخط اليد رقم ${idx + 1} لمراجعة مادة كيمياء التوجيهي، وسرعة التفاعل من دفتر عدنان مجاهد.`,
+                category: isTeacher ? 'لوح المعلم' : 'دفتر عدنان'
               }));
             }
             return null;
           }
         },
         {
-          url: 'https://api.imgur.com/3/album/9TP6hPU/images',
+          url: `https://api.imgur.com/3/album/${albumId}/images`,
           headers: { 'Authorization': 'Client-ID 4e1d1e43689408e' },
           parser: (json: any) => {
             if (json && json.data && Array.isArray(json.data)) {
               return json.data.map((item: any, idx: number) => ({
-                id: `board_${item.id}`,
+                id: `board_${albumId}_${item.id}`,
                 url: item.link || `https://i.imgur.com/${item.id}.jpg`,
-                title: item.title || `لوحة الشرح والتلخيص ${idx + 1}`,
-                description: item.description || `اللوح الدراسي رقم ${idx + 1} لمراجعة الكيمياء والتمثيل البياني والاتزان الكيميائي.`,
-                category: 'لوح المعلم'
+                title: isTeacher ? `لوحة الشرح والتلخيص ${idx + 1}` : `دفتر عدنان مجاهد - صفحة ${idx + 1}`,
+                description: isTeacher 
+                  ? `اللوح الدراسي رقم ${idx + 1} لمراجعة الكيمياء والتمثيل البياني والاتزان الكيميائي.`
+                  : `الصفحة الملخصة بخط اليد رقم ${idx + 1} لمراجعة مادة كيمياء التوجيهي، وسرعة التفاعل من دفتر عدنان مجاهد.`,
+                category: isTeacher ? 'لوح المعلم' : 'دفتر عدنان'
               }));
             }
             return null;
@@ -99,10 +145,15 @@ export default function App() {
           const json = await response.json();
           const parsedImages = endpoint.parser(json);
           if (parsedImages && parsedImages.length > 0) {
-            console.log(`Successfully fetched ${parsedImages.length} images from Imgur directly:`, endpoint.url);
-            setImages(parsedImages);
-            localStorage.setItem('study_board_images', JSON.stringify(parsedImages));
-            return; // Successfully loaded, skip fallbacks
+            console.log(`Successfully fetched ${parsedImages.length} images directly for album ${albumId}`);
+            if (isTeacher) {
+              setTeacherImages(parsedImages);
+              localStorage.setItem('study_board_images', JSON.stringify(parsedImages));
+            } else {
+              setNotebookImages(parsedImages);
+              localStorage.setItem('study_notebook_images', JSON.stringify(parsedImages));
+            }
+            return;
           }
         } catch (err) {
           console.log(`Direct fetch failed for ${endpoint.url}:`, err);
@@ -110,7 +161,7 @@ export default function App() {
       }
 
       // If direct fetches fail, we fall back to scraping via CORS proxies
-      const albumUrl = 'https://imgur.com/a/9TP6hPU';
+      const albumUrl = `https://imgur.com/a/${albumId}`;
       const proxies = [
         `https://corsproxy.io/?${encodeURIComponent(albumUrl)}`,
         `https://api.allorigins.win/get?url=${encodeURIComponent(albumUrl)}`,
@@ -138,7 +189,7 @@ export default function App() {
             let match;
             while ((match = regexHash.exec(html)) !== null) {
               const h = match[1];
-              if (h !== '9TP6hPU' && h.length >= 5) {
+              if (h !== albumId && h.length >= 5) {
                 hashes.add(h);
               }
             }
@@ -147,36 +198,43 @@ export default function App() {
             const regexImg = /i\.imgur\.com\/([a-zA-Z0-9]{5,10})(\.jpg|\.png|\.jpeg)/gi;
             while ((match = regexImg.exec(html)) !== null) {
               const h = match[1];
-              if (h !== '9TP6hPU' && h.length >= 5) {
+              if (h !== albumId && h.length >= 5) {
                 hashes.add(h);
               }
             }
 
             const hashList = Array.from(hashes);
             if (hashList.length > 0) {
-              console.log('Successfully scraped Imgur hashes client-side:', hashList.length);
+              console.log(`Successfully scraped Imgur hashes client-side for ${albumId}:`, hashList.length);
               const mapped = hashList.map((hash, idx) => ({
-                id: `board_${hash}`,
+                id: `board_${albumId}_${hash}`,
                 url: `https://i.imgur.com/${hash}.jpg`,
-                title: `لوحة الشرح والتلخيص ${idx + 1}`,
-                description: `اللوح الدراسي الخطي رقم ${idx + 1} المحمل من الألبوم لمراجعة مسائل المنهج وقوانين الكيمياء.`,
-                category: `لوح المعلم`
+                title: isTeacher ? `لوحة الشرح والتلخيص ${idx + 1}` : `دفتر عدنان مجاهد - صفحة ${idx + 1}`,
+                description: isTeacher 
+                  ? `اللوح الدراسي الخطي رقم ${idx + 1} لمراجعة مسائل المنهج وقوانين الكيمياء.` 
+                  : `الصفحة الملخصة بخط اليد رقم ${idx + 1} بموضوع كيمياء التوجيهي من كراسة الطالب المتفوق عدنان مجاهد.`,
+                category: isTeacher ? `لوح المعلم` : `دفتر عدنان`
               }));
-              setImages(mapped);
-              localStorage.setItem('study_board_images', JSON.stringify(mapped));
+              if (isTeacher) {
+                setTeacherImages(mapped);
+                localStorage.setItem('study_board_images', JSON.stringify(mapped));
+              } else {
+                setNotebookImages(mapped);
+                localStorage.setItem('study_notebook_images', JSON.stringify(mapped));
+              }
               break;
             }
           }
         } catch (e) {
-          console.log('Skipping proxy due to local region limitations:', proxy);
+          console.log(`Skipping proxy due to local region limitations:`, proxy);
         }
       }
     };
 
-    fetchImgurAlbum();
+    // Trigger both album decoders in parallel
+    fetchImgurAlbum('9TP6hPU', true); // Teacher's whiteboard (Sabboora)
+    fetchImgurAlbum('0Y7r9m1', false); // Adnan Mujahed's Student Notebook
   }, []);
-
-  const [activeIdx, setActiveIdx] = useState<number>(0);
 
   // Completed textbook chapters (We have 6 chapters in the textbook view, let's track progress metric using them)
   const [completedChapters, setCompletedChapters] = useState<string[]>(() => {
@@ -186,8 +244,12 @@ export default function App() {
 
   // State synchronization with localStorage
   useEffect(() => {
-    localStorage.setItem('study_board_images', JSON.stringify(images));
-  }, [images]);
+    localStorage.setItem('study_board_images', JSON.stringify(teacherImages));
+  }, [teacherImages]);
+
+  useEffect(() => {
+    localStorage.setItem('study_notebook_images', JSON.stringify(notebookImages));
+  }, [notebookImages]);
 
   useEffect(() => {
     localStorage.setItem('study_completed_chapters', JSON.stringify(completedChapters));
@@ -195,23 +257,39 @@ export default function App() {
 
   // Image actions handlers
   const handleAddImage = (newImg: BoardImage) => {
-    setImages(prev => {
-      const updated = [...prev, newImg];
-      // Automatically switch focus to the newly added image
-      setActiveIdx(updated.length - 1);
-      return updated;
-    });
+    if (activeSource === 'teacher') {
+      setTeacherImages(prev => {
+        const updated = [...prev, newImg];
+        setTeacherActiveIdx(updated.length - 1);
+        return updated;
+      });
+    } else {
+      setNotebookImages(prev => {
+        const updated = [...prev, newImg];
+        setNotebookActiveIdx(updated.length - 1);
+        return updated;
+      });
+    }
   };
 
   const handleDeleteImage = (id: string) => {
-    setImages(prev => {
-      const filtered = prev.filter(img => img.id !== id);
-      // Reset active index if we deleted the last one or active image is out of bounds
-      if (activeIdx >= filtered.length) {
-        setActiveIdx(Math.max(0, filtered.length - 1));
-      }
-      return filtered;
-    });
+    if (activeSource === 'teacher') {
+      setTeacherImages(prev => {
+        const filtered = prev.filter(img => img.id !== id);
+        if (teacherActiveIdx >= filtered.length) {
+          setTeacherActiveIdx(Math.max(0, filtered.length - 1));
+        }
+        return filtered;
+      });
+    } else {
+      setNotebookImages(prev => {
+        const filtered = prev.filter(img => img.id !== id);
+        if (notebookActiveIdx >= filtered.length) {
+          setNotebookActiveIdx(Math.max(0, filtered.length - 1));
+        }
+        return filtered;
+      });
+    }
   };
 
   // Chapter Toggle Handlers
@@ -250,6 +328,10 @@ export default function App() {
               onSelectIndex={(idx) => setActiveIdx(idx)}
               onAddImage={handleAddImage}
               onDeleteImage={handleDeleteImage}
+              activeSource={activeSource}
+              onChangeSource={setActiveSource}
+              teacherCount={teacherImages.length}
+              notebookCount={notebookImages.length}
             />
           </div>
           
